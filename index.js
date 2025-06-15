@@ -8,15 +8,22 @@ const SCOPES = ['https://www.googleapis.com/auth/firebase.messaging'];
 // Load service account key from file
 const serviceAccount = require('./service-account.json'); // <-- rename your downloaded JSON to this
 
-const getAccessToken = async () => {
-  const auth = new GoogleAuth({
-    credentials: serviceAccount,
-    scopes: SCOPES,
-  });
+let cachedToken = null;
+let cachedAt = 0;
 
+const getAccessToken = async () => {
+  const now = Date.now();
+  const isExpired = !cachedToken || now - cachedAt > 50 * 60 * 1000; // 50 minutes
+  if (!isExpired) return cachedToken;
+
+  const auth = new GoogleAuth({ credentials: serviceAccount, scopes: SCOPES });
   const client = await auth.getClient();
   const tokenResponse = await client.getAccessToken();
-  return tokenResponse.token;
+
+  cachedToken = tokenResponse.token;
+  cachedAt = now;
+
+  return cachedToken;
 };
 
 app.get('/token', async (req, res) => {
